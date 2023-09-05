@@ -1,0 +1,119 @@
+// Copyright (C) 2011-2012 Sergey Taraban
+
+#include "stdafx.h"
+#include "SceneNode.h"
+
+SceneNode::SceneNode(void)
+{
+	m_mTranslate = cml::identity<4>();
+	m_mRotate = cml::identity<4>();
+	m_mScale = cml::identity<4>();
+	cml::matrix_translation(m_mScale, 1.0f, 1.0f, 1.0f); 
+
+	m_vertex= m_texcoord= NULL;
+	m_index = 0;
+
+	m_angle = 0;
+	m_vertex_size = 0;
+
+	m_texID = GL_INVALID_VALUE;
+
+	m_vbo_vertexID = GL_INVALID_VALUE;
+	m_vbo_texcoordID = GL_INVALID_VALUE;
+}
+
+//---------------------------------
+SceneNode::~SceneNode(void)
+{
+	delete [] m_vertex;
+	delete [] m_index;
+	delete [] m_texcoord;
+
+	glDeleteTextures(1, &m_texID);
+	glDeleteBuffers(1, &m_vbo_vertexID);
+	glDeleteBuffers(1, &m_vbo_texcoordID);
+}
+
+//---------------------------------
+void SceneNode::render(float useVBO)
+{
+	glPushMatrix(); 
+
+	m_angle += 0.005f;
+	if(m_angle > 2*M_PI) m_angle = 0;
+
+//	glTranslatef(m_coord[0], m_coord[1], m_coord[2]);
+//	glRotatef(m_angle, 1, 1, 0);
+//	glScalef(m_scale[0], m_scale[1], m_scale[2]);
+	this->setRotation(cml::vector3f(0, m_angle, 0));
+	matrix4f mWorldTransform = m_mScale*m_mRotate*m_mTranslate; 
+
+	glMultMatrixf(mWorldTransform.data());
+	glGetFloatv (GL_MODELVIEW_MATRIX, m_mModelView);
+
+	glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_CLAMP);
+	glBindTexture(GL_TEXTURE_2D, m_texID);
+
+	if(useVBO == 1)
+	{
+		// activate and specify pointer to vertex array
+		glEnableClientState(GL_VERTEX_ARRAY);
+		//glEnableClientState(GL_COLOR_ARRAY);
+		glEnableClientState(GL_TEXTURE_COORD_ARRAY);
+
+		glBindBufferARB(GL_ARRAY_BUFFER_ARB, m_vbo_vertexID);
+		glVertexPointer(3, GL_FLOAT, 0, NULL);
+
+		glBindBufferARB(GL_ARRAY_BUFFER_ARB, m_vbo_texcoordID);
+		glTexCoordPointer(2, GL_FLOAT, 0, NULL);
+
+		//glColorPointer(3, GL_FLOAT, 0, m_color);
+
+		// draw a cube
+		//glDrawElements(GL_QUADS, m_vert_num, GL_UNSIGNED_BYTE, m_index);
+		glDrawArrays(GL_TRIANGLES, 0, (m_vert_num/3));
+
+		// deactivate vertex arrays after drawing
+		glDisableClientState(GL_VERTEX_ARRAY);
+		glDisableClientState(GL_TEXTURE_COORD_ARRAY);
+
+		glBindBufferARB(GL_ARRAY_BUFFER_ARB, 0); //disable VBO
+	}
+	else if(useVBO == 2)
+	{
+		glEnableClientState(GL_VERTEX_ARRAY);
+		glEnableClientState(GL_TEXTURE_COORD_ARRAY);
+
+		glBindBufferARB(GL_ARRAY_BUFFER_ARB, m_vbo_vertexID);
+		glVertexPointer(3, GL_FLOAT, 0, NULL);
+		glTexCoordPointer(2, GL_FLOAT, 0, (float*)NULL + m_vertex_size);
+
+		glDrawArrays(GL_TRIANGLES, 0, (m_vert_num/3));
+
+		glDisableClientState(GL_VERTEX_ARRAY);
+		glDisableClientState(GL_TEXTURE_COORD_ARRAY);
+	}
+	else
+	{
+		// activate and specify pointer to vertex array
+		glEnableClientState(GL_VERTEX_ARRAY);
+		//glEnableClientState(GL_COLOR_ARRAY);
+		glEnableClientState(GL_TEXTURE_COORD_ARRAY);
+
+		glVertexPointer(3, GL_FLOAT, 0, m_vertex);
+		glTexCoordPointer(2, GL_FLOAT, 0, m_texcoord);
+		//glColorPointer(3, GL_FLOAT, 0, m_color);
+
+		// draw a cube
+		//glDrawElements(GL_TRIANGLES, m_vert_num, GL_UNSIGNED_BYTE, m_index);
+		//glDrawArrays(GL_QUADS, 0, (m_vert_num/3));
+		glDrawArrays(GL_TRIANGLES, 0, (m_vert_num/3));
+
+		// deactivate vertex arrays after drawing
+		glDisableClientState(GL_VERTEX_ARRAY);
+		//glDisableClientState(GL_COLOR_ARRAY);
+		glDisableClientState(GL_TEXTURE_COORD_ARRAY);
+	}
+
+	glPopMatrix(); 
+}
